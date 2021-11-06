@@ -35,25 +35,74 @@
 #include "esp_spiffs.h"
 
 static const char *TAG = "beast_squib";
-
 static xQueueHandle beastsquib_espnow_queue;
-
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint16_t s_beastsquib_espnow_seq[beastsquib_ESPNOW_DATA_MAX] = { 0, 0 };
 
-static void beastsquib_espnow_deinit(beastsquib_espnow_send_param_t *send_param);
-
 // #define TX
+#define RX
 
-// TX
-#ifdef TX
-#define GPIO_OUTPUT_IO_16    5
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUTPUT_IO_16))
-#else
+#if defined(TX) && defined(RX)
+#error Cannot define both TX and RX
+#endif
+
+#ifdef RX
 // RX
-#define GPIO_OUTPUT_BOOM     15
-#define GPIO_OUTPUT_LED      16
-#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_OUTPUT_BOOM) | (1ULL<<GPIO_OUTPUT_LED))
+#define GPIO_OUTPUT_PYRO 15
+#define GPIO_OUTPUT_PYRO_MASK (1ULL << GPIO_OUTPUT_PYRO)
+#define GPIO_OUTPUT_ARMED_LED 16
+#define GPIO_OUTPUT_ARMED_MASK (1ULL << GPIO_OUTPUT_ARMED_LED)
+
+/* Kill command variables. */
+int board_id = -1;
+bool pyro_armed = false;
+
+#define LOW 0
+#define HIGH 1
+
+/* Enables the PYRO GPIO pin (sets to OUTPUT with pull down) */
+static inline void SET_ARMED() {
+    gpio_config_t gpio_armed_pin_config = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = GPIO_OUTPUT_PYRO_MASK,
+        .pull_down_en = 1,
+        .pull_up_en = 0
+    };
+
+    gpio_config(&gpio_armed_pin_config);
+
+    // Set LED to HIGH (off)
+    gpio_set_level(GPIO_OUTPUT_ARMED_LED, HIGH);
+
+    pyro_armed = true;
+}
+
+/* Disables the PYRO GPIO pin (sets to tri-state with pull down) */
+static inline void SET_DISARMED() {
+    gpio_config_t gpio_pyro_pin_disabled_config = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_INPUT,
+        .pin_bit_mask = GPIO_OUTPUT_ARMED_MASK,
+        .pull_down_en = 1,
+        .pull_up_en = 0
+    };
+
+    // Set PYRO to LOW (disarmed)
+    gpio_config(&gpio_pyro_pin_disabled_config);
+
+    // Set LED to LOW (on)
+    gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
+    
+    pyro_armed = false;
+}
+
+/* Detonates the PYRO! */
+static inline void DETONATE() {
+    // Set PYRO GPIO to HIGH (detonate)
+    gpio_set_level(GPIO_OUTPUT_PYRO, HIGH);
+}
+
 #endif
 
 static uint16_t ticks_since_last_packet = 0;
@@ -69,9 +118,7 @@ static void beastsquib_wifi_init(void)
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
     ESP_ERROR_CHECK( esp_wifi_set_mode(ESPNOW_WIFI_MODE) );
-    // Max power
     esp_wifi_set_max_tx_power(84);
-    // ESP_ERROR_CHECK ( esp_wifi_config_espnow_rate(ESPNOW_WIFI_MODE, 0x10) );
     ESP_ERROR_CHECK( esp_wifi_start());
 
     /* In order to simplify example, channel is set after WiFi started.
@@ -171,6 +218,13 @@ void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param)
     buf->crc = crc16_le(UINT16_MAX, (uint8_t const *)buf, send_param->len);
 }
 
+/* Called when a broadcast packet is received. */
+static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_event_recv_cb_t *recv_cb) {
+
+
+
+}
+
 static void beastsquib_espnow_task(void *pvParameter)
 {
     beastsquib_espnow_event_t evt;
@@ -179,21 +233,17 @@ static void beastsquib_espnow_task(void *pvParameter)
         switch (evt.id) {
             case BEASTSQUIB_ESPNOW_SEND_CB:
             {
-
+                /* SENT DATA */
                 break;
             }
             case BEASTSQUIB_ESPNOW_RECV_CB:
             {
-                beastsquib_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
-                free(recv_cb->data);
-
+                /* RECEIVED DATA */
                 ticks_since_last_packet = 0;
 
-                // boom
-                gpio_set_level(GPIO_OUTPUT_LED, 0);
-                gpio_set_level(GPIO_OUTPUT_BOOM, 1);
-
-                // ESP_LOGI(TAG, "recieved data");
+                beastsquib_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
+                espnow_broadcast_packet_recv_cb(recv_cb);
+                free(recv_cb->data);
 
                 break;
             }
@@ -204,6 +254,8 @@ static void beastsquib_espnow_task(void *pvParameter)
     }
 }
 
+#ifdef TX
+
 static void tx_transmit_task(void *pvParameter)
 {
     while (1)
@@ -212,7 +264,6 @@ static void tx_transmit_task(void *pvParameter)
 
         // ESP_LOGI(TAG, "ticks %d", ticks_since_last_packet);
 
-#ifdef TX
         /* Send some data to the broadcast address. */
         beastsquib_espnow_send_param_t *send_param = (beastsquib_espnow_send_param_t *)pvParameter;
         if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
@@ -222,9 +273,10 @@ static void tx_transmit_task(void *pvParameter)
         }
 
         ESP_LOGI(TAG, "sent data");
-#endif
     }
 }
+
+#endif
 
 static esp_err_t beastsquib_espnow_init(void)
 {
@@ -290,7 +342,10 @@ static esp_err_t beastsquib_espnow_init(void)
     beastsquib_espnow_data_prepare(send_param);
 
     xTaskCreate(beastsquib_espnow_task, "beastsquib_espnow_task", 2048, NULL, 4, NULL);
+  
+#ifdef TX
     xTaskCreate(tx_transmit_task, "tx_transmit_task", 2048, send_param, 4, NULL);
+#endif
 
     return ESP_OK;
 }
@@ -303,23 +358,25 @@ static void beastsquib_espnow_deinit(beastsquib_espnow_send_param_t *send_param)
     esp_now_deinit();
 }
 
+/* Hardware timer keeps track of the number of ticks since the last received espnow packet
+   If more than 100 ticks have elapsed, disarm the board.
+*/
 void hw_timer_callback(void *arg)
 {
     ticks_since_last_packet ++;
 
     if (ticks_since_last_packet > 100)
     {
-        gpio_set_level(GPIO_OUTPUT_LED, 1);
-        gpio_set_level(GPIO_OUTPUT_BOOM, 0);
+        SET_DISARMED();
     }
 }
 
-#define EX_UART_NUM UART_NUM_0
+#ifdef TX
 
+#define EX_UART_NUM UART_NUM_0
 #define BUF_SIZE (1024)
 #define RD_BUF_SIZE (BUF_SIZE)
 static QueueHandle_t uart0_queue;
-
 char uart_command_buffer[9];
 
 static void read_board_id_cb(void)
@@ -452,42 +509,30 @@ static void uart_event_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
+#endif
+
 void app_main()
 {
     // Initialize NVS
     ESP_ERROR_CHECK( nvs_flash_init() );
 
-    gpio_config_t io_conf = {
+    /* Only the receiver enables GPIO pins and the SPI filesystem. */
+#ifdef RX
+
+    gpio_config_t gpio_armed_pin_config = {
         .intr_type = GPIO_INTR_DISABLE,
         .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = GPIO_OUTPUT_PIN_SEL,
+        .pin_bit_mask = GPIO_OUTPUT_ARMED_MASK,
         .pull_down_en = 0,
-        .pull_up_en = 0
+        .pull_up_en = 1
     };
 
     ESP_LOGI(TAG, "Initialize GPIO");
-    gpio_set_level(GPIO_OUTPUT_LED, 1);
-    gpio_set_level(GPIO_OUTPUT_BOOM, 0);
-    gpio_config(&io_conf);
+    gpio_config(&gpio_armed_pin_config);
 
     ESP_LOGI(TAG, "Initialize TIMER");
     hw_timer_init(hw_timer_callback, NULL);
     hw_timer_alarm_us(1000, true);
-
-    // Configure parameters of an UART driver
-    uart_config_t uart_config = {
-        .baud_rate = 74880,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    };
-    
-    // Install UART driver, and get the queue.
-    ESP_LOGI(TAG, "Initialize UART");
-    uart_param_config(EX_UART_NUM, &uart_config);
-    uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 100, &uart0_queue, 0);
-    xTaskCreate(uart_event_task, "uart_event_task", 2048, NULL, 12, NULL);
 
     // Get board ID
     esp_vfs_spiffs_conf_t conf = {
@@ -526,7 +571,27 @@ void app_main()
         ESP_LOGI(TAG, "File written");
     }
 
-    read_board_id_cb();
+#endif
+
+    /* Only the transmitter runs the UART task to process kill data. */
+#ifdef TX
+
+    // Configure parameters of an UART driver
+    uart_config_t uart_config = {
+        .baud_rate = 74880,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+    
+    // Install UART driver, and get the queue.
+    ESP_LOGI(TAG, "Initialize UART");
+    uart_param_config(EX_UART_NUM, &uart_config);
+    uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 100, &uart0_queue, 0);
+    xTaskCreate(uart_event_task, "uart_event_task", 2048, NULL, 12, NULL);
+
+#endif
 
     beastsquib_wifi_init();
     beastsquib_espnow_init();
