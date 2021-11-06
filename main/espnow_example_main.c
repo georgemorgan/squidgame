@@ -34,6 +34,8 @@
 #include "driver/uart.h"
 #include "esp_spiffs.h"
 
+#define BEASTSQUIB_MAGIC_NUMBER 0xB3A57
+
 static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -62,37 +64,16 @@ bool pyro_armed = false;
 
 /* Enables the PYRO GPIO pin (sets to OUTPUT with pull down) */
 static inline void SET_ARMED() {
-    gpio_config_t gpio_armed_pin_config = {
-        .intr_type = GPIO_INTR_DISABLE,
-        .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = GPIO_OUTPUT_PYRO_MASK,
-        .pull_down_en = 1,
-        .pull_up_en = 0
-    };
-
-    gpio_config(&gpio_armed_pin_config);
-
-    // Set LED to HIGH (off)
-    gpio_set_level(GPIO_OUTPUT_ARMED_LED, HIGH);
+    // Set LED to LOW (on)
+    gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
 
     pyro_armed = true;
 }
 
 /* Disables the PYRO GPIO pin (sets to tri-state with pull down) */
 static inline void SET_DISARMED() {
-    gpio_config_t gpio_pyro_pin_disabled_config = {
-        .intr_type = GPIO_INTR_DISABLE,
-        .mode = GPIO_MODE_INPUT,
-        .pin_bit_mask = GPIO_OUTPUT_ARMED_MASK,
-        .pull_down_en = 1,
-        .pull_up_en = 0
-    };
-
-    // Set PYRO to LOW (disarmed)
-    gpio_config(&gpio_pyro_pin_disabled_config);
-
-    // Set LED to LOW (on)
-    gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
+    // Set LED to HIGH (off)
+    gpio_set_level(GPIO_OUTPUT_ARMED_LED, HIGH);
     
     pyro_armed = false;
 }
@@ -175,7 +156,7 @@ static void beastsquib_espnow_recv_cb(const uint8_t *mac_addr, const uint8_t *da
 }
 
 /* Parse received ESPNOW data. */
-int beastsquib_espnow_data_parse(uint8_t *data, uint16_t data_len, uint8_t *state, uint16_t *seq, int *magic)
+int beastsquib_validate_espnow_data_checksum(uint8_t *data, uint16_t data_len)
 {
     beastsquib_espnow_data_t *buf = (beastsquib_espnow_data_t *)data;
     uint16_t crc, crc_cal = 0;
@@ -185,17 +166,16 @@ int beastsquib_espnow_data_parse(uint8_t *data, uint16_t data_len, uint8_t *stat
         return -1;
     }
 
-    *state = buf->state;
-    *seq = buf->seq_num;
-    *magic = buf->magic;
     crc = buf->crc;
     buf->crc = 0;
     crc_cal = crc16_le(UINT16_MAX, (uint8_t const *)buf, data_len);
 
-    if (crc_cal == crc) {
-        return buf->type;
+    // Validate CRC and MAGIC
+    if ((crc_cal == crc) && (buf->magic == BEASTSQUIB_MAGIC_NUMBER)) {
+        return 0;
     }
 
+    // Error parsing packet
     return -1;
 }
 
@@ -219,10 +199,8 @@ void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param)
 }
 
 /* Called when a broadcast packet is received. */
-static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_event_recv_cb_t *recv_cb) {
-
-
-
+static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
+    SET_ARMED();
 }
 
 static void beastsquib_espnow_task(void *pvParameter)
@@ -242,7 +220,11 @@ static void beastsquib_espnow_task(void *pvParameter)
                 ticks_since_last_packet = 0;
 
                 beastsquib_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
-                espnow_broadcast_packet_recv_cb(recv_cb);
+                // if (beastsquib_validate_espnow_data_checksum(recv_cb->data, recv_cb->data_len) == 0)
+                // {
+                    espnow_broadcast_packet_recv_cb((beastsquib_espnow_data_t *)recv_cb->data);
+                // }
+
                 free(recv_cb->data);
 
                 break;
@@ -358,6 +340,8 @@ static void beastsquib_espnow_deinit(beastsquib_espnow_send_param_t *send_param)
     esp_now_deinit();
 }
 
+#define ESPNOW_SILENCE_TICKS_TIMEOUT 100
+
 /* Hardware timer keeps track of the number of ticks since the last received espnow packet
    If more than 100 ticks have elapsed, disarm the board.
 */
@@ -365,7 +349,7 @@ void hw_timer_callback(void *arg)
 {
     ticks_since_last_packet ++;
 
-    if (ticks_since_last_packet > 100)
+    if (ticks_since_last_packet > ESPNOW_SILENCE_TICKS_TIMEOUT)
     {
         SET_DISARMED();
     }
@@ -529,6 +513,16 @@ void app_main()
 
     ESP_LOGI(TAG, "Initialize GPIO");
     gpio_config(&gpio_armed_pin_config);
+
+    gpio_config_t gpio_pyro_pin_config = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = GPIO_OUTPUT_PYRO_MASK,
+        .pull_down_en = 1,
+        .pull_up_en = 0
+    };
+
+    gpio_config(&gpio_pyro_pin_config);
 
     ESP_LOGI(TAG, "Initialize TIMER");
     hw_timer_init(hw_timer_callback, NULL);
