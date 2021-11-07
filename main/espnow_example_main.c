@@ -49,7 +49,8 @@ static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 
 #endif
 
 int board_id = -1;
-uint16_t test_board_id = 433;
+uint16_t test_board_id = 0;
+beastsquib_espnow_data_t global_tx_data;
 
 #ifdef RX
 // RX
@@ -229,7 +230,7 @@ static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
     // print_bytes(data->pyro_bits);
 
     // Gets armed bit associated with this board ID
-    if (get_bit(data->armed_bits))
+    if (data->armed == 1)
     {
         ESP_LOGI(TAG, "ARMED");
         SET_ARMED();
@@ -301,13 +302,15 @@ static void tx_transmit_task(void *pvParameter)
         beastsquib_espnow_send_param_t *send_param = (beastsquib_espnow_send_param_t *)pvParameter;
         beastsquib_espnow_data_t *data = send_param->buffer;
 
-        memset(data->armed_bits, 0, sizeof(data->armed_bits));
-        memset(data->pyro_bits, 0, sizeof(data->pyro_bits));
+        memcpy(data, &global_tx_data, sizeof(global_tx_data));
 
-        /* Trigger board ID 433 */
-        uint8_t test_board_idx = test_board_id / 8;
-        uint8_t test_board_offset = test_board_id % 8;
-        data->armed_bits[test_board_idx] = (1 << test_board_offset);
+        /* Arm or disarm all the boards */
+        // data->armed = global_armed_state;
+
+        /* Trigger the test_board_id */
+        // uint8_t test_board_idx = test_board_id / 8;
+        // uint8_t test_board_offset = test_board_id % 8;
+        // data->pyro_bits[test_board_idx] = (1 << test_board_offset);
 
         // ESP_LOGI(TAG, "armed_bits: ");
         // print_bytes(data->armed_bits);
@@ -401,7 +404,7 @@ static esp_err_t beastsquib_espnow_init(void)
 #define BUF_SIZE (1024)
 #define RD_BUF_SIZE (BUF_SIZE)
 static QueueHandle_t uart0_queue;
-char uart_command_buffer[9];
+char uart_command_buffer[128+6];
 
 static void read_board_id_cb(void)
 {
@@ -434,42 +437,6 @@ static void read_board_id_cb(void)
     }
 }
 
-static void set_board_id_cb(void)
-{
-    // Parse the board id buffer
-    char board_id[4];
-    memset(board_id, 0, 4);
-    memcpy(board_id, uart_command_buffer+5, 3);
-    ESP_LOGI(TAG, "board_id: %s", board_id);
-
-    struct stat st;
-    if (stat("/spiffs/boardid.txt", &st) == 0) {
-        // Delete it if it exists
-        unlink("/spiffs/boardid.txt");
-    }
-
-    ESP_LOGI(TAG, "Opening file");
-    FILE* f = fopen("/spiffs/boardid.txt", "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return;
-    }
-    fprintf(f, "%s\n", board_id);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-}
-
-// DEBUG only
-static void set_test_board_id_cb(void)
-{
-    // Parse the board id buffer
-    char board_id[4];
-    memset(board_id, 0, 4);
-    memcpy(board_id, uart_command_buffer+5, 3);
-    test_board_id = atoi(board_id);
-    ESP_LOGI(TAG, "test_board_id: %i", test_board_id);
-}
-
 static void uart_event_task(void *pvParameters)
 {
     uart_event_t event;
@@ -492,19 +459,75 @@ static void uart_event_task(void *pvParameters)
                         memmove(uart_command_buffer, uart_command_buffer + 1, sizeof(uart_command_buffer) - 1);
                         uart_command_buffer[sizeof(uart_command_buffer) - 1] = dtmp[i];
 
-                        if (memcmp(uart_command_buffer, "#SID,", 4) == 0 && uart_command_buffer[8] == ';')
+                        void *end_buffer = uart_command_buffer + sizeof(uart_command_buffer) - 1;
+
+                        // #SID,000;
+                        if (memcmp(end_buffer-8, "#SID,", 4) == 0 && *(uint8_t *)end_buffer == ';')
                         {
-                            set_board_id_cb();
+                            // Parse the board id buffer
+                            char board_id[4];
+                            memset(board_id, 0, 4);
+                            memcpy(board_id, end_buffer-3, 3);
+                            ESP_LOGI(TAG, "board_id: %s", board_id);
+
+                            struct stat st;
+                            if (stat("/spiffs/boardid.txt", &st) == 0) {
+                                // Delete it if it exists
+                                unlink("/spiffs/boardid.txt");
+                            }
+
+                            ESP_LOGI(TAG, "Opening file");
+                            FILE* f = fopen("/spiffs/boardid.txt", "w");
+                            if (f == NULL) {
+                                ESP_LOGE(TAG, "Failed to open file for writing");
+                                return;
+                            }
+
+                            fprintf(f, "%s\n", board_id);
+                            fclose(f);
+                            ESP_LOGI(TAG, "File written");
                         }
                         
-                        if (memcmp(uart_command_buffer, "#RID,", 4) == 0 && uart_command_buffer[5] == ';')
+                        // #RID,;
+                        if (memcmp(end_buffer-5, "#RID,", 4) == 0 && *(uint8_t *)end_buffer == ';')
                         {
                             read_board_id_cb();
                         }
 
-                        if (memcmp(uart_command_buffer, "#TID,", 4) == 0 && uart_command_buffer[8] == ';')
+                        // #TID,000;
+                        if (memcmp(end_buffer-8, "#TID,", 4) == 0 && *(uint8_t *)end_buffer == ';')
                         {
-                            set_test_board_id_cb();
+                            char board_id[4];
+                            memset(board_id, 0, 4);
+                            memcpy(board_id, end_buffer-3, 3);
+                            test_board_id = atoi(board_id);
+                            ESP_LOGI(TAG, "test_board_id: %i", test_board_id);
+                        }
+
+                        // #ARM,0;
+                        if (memcmp(end_buffer-6, "#ARM,", 4) == 0 && *(uint8_t *)end_buffer == ';')
+                        {
+                            // Parse the board id buffer
+                            char armed_bit[1];
+                            memset(armed_bit, 0, 1);
+                            memcpy(armed_bit, end_buffer-1, 1);
+                            global_tx_data.armed = atoi(armed_bit);
+                            ESP_LOGI(TAG, "global_armed_state: %i", global_tx_data.armed);
+                        }
+
+                        if (memcmp(uart_command_buffer, "#DET,", 4) == 0 && *(uint8_t *)end_buffer == ';')
+                        {
+                            void *start_hex = uart_command_buffer + 5;
+                            char byte[3];
+                            memset(byte, 0, 3);
+
+                            for (int i = 0; i < 64; i ++)
+                            {
+                                memcpy(byte, start_hex + 2*i, 2);
+                                global_tx_data.pyro_bits[i] = strtol(byte, NULL, 16);
+                            }
+
+                            ESP_LOGI(TAG, "updated pyro data");
                         }
                     }
                     uart_write_bytes(EX_UART_NUM, (const char *) dtmp, event.size);
@@ -551,7 +574,7 @@ static void uart_event_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-#define ESPNOW_SILENCE_TICKS_TIMEOUT 100
+#define ESPNOW_SILENCE_TICKS_TIMEOUT 1000
 
 /* Hardware timer keeps track of the number of ticks since the last received espnow packet
    If more than 100 ticks have elapsed, disarm the board.
@@ -644,7 +667,7 @@ void app_main()
 
     // Configure parameters of an UART driver
     uart_config_t uart_config = {
-        .baud_rate = 74880,
+        .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -656,6 +679,8 @@ void app_main()
     uart_param_config(EX_UART_NUM, &uart_config);
     uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 100, &uart0_queue, 0);
     xTaskCreate(uart_event_task, "uart_event_task", 2048, NULL, 12, NULL);
+
+    memset(&global_tx_data, 0, sizeof(global_tx_data));
 
     beastsquib_wifi_init();
     beastsquib_espnow_init();
