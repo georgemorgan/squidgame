@@ -16,6 +16,7 @@
 #include <time.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
@@ -40,8 +41,8 @@ static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-// #define TX
-#define RX
+#define TX
+// #define RX
 
 #if defined(TX) && defined(RX)
 #error Cannot define both TX and RX
@@ -183,14 +184,12 @@ int beastsquib_validate_espnow_data_checksum(uint8_t *data, uint16_t data_len)
 }
 
 /* Prepare ESPNOW data to be sent. */
-void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param, uint64_t *armed_list, uint64_t *pyro_list)
+void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param)
 {
     beastsquib_espnow_data_t *send_buffer = (beastsquib_espnow_data_t *)send_param->buffer;
     assert(send_param->len >= sizeof(beastsquib_espnow_data_t));
     send_buffer->crc = 0;
     send_buffer->magic = send_param->magic;
-    memcpy(send_buffer->payload, armed_list, sizeof(uint64_t) * 8);
-    memcpy(send_buffer->payload + sizeof(uint64_t) * 8, pyro_list, sizeof(uint64_t) * 8);
     send_buffer->crc = crc16_le(UINT16_MAX, (uint8_t const *)send_buffer, send_param->len);
 }
 
@@ -201,34 +200,52 @@ static bool get_bit(uint64_t *bits_list)
     }
 
     // Modulo 64 gets the index into the armed list
-    int idx = (int)(board_id / 64);
-    int offset = (int)(board_id % 64);
-    ESP_LOGI(TAG, "idx '%i', offset '%i', bits '0x%llx', addr '%p'", idx, offset, 0ull, bits_list);
-    uint64_t armed_bits = bits_list[idx];
+    uint64_t idx = (uint64_t)(board_id / 64);
+    uint64_t offset = (uint64_t)(board_id % 64);
+    uint64_t bits = bits_list[idx];
+    bool set = ((bits & (1 << offset)) != 0);
     
-    return ((armed_bits & (1 << offset)) != 0);
+    ESP_LOGI(TAG, "idx '%i', offset '%i', bit '%s'", (int)idx, (int)offset, (set) ? "T" : "F");
+
+    return set;
+}
+
+static void print_bytes(uint64_t *bits_list) {
+    for (int i = 0; i < 8; i ++)
+    {
+        for (int j = 0; j < 4; j ++)
+        {
+            ESP_LOGI(TAG, "byte 0x%02x", *(uint8_t *)((uint8_t *)bits_list + i + j));
+        }
+    }
 }
 
 /* Called when a broadcast packet is received. */
-static void espnow_broadcast_packet_recv_cb(uint8_t *data) {
+static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
 #ifdef RX
-    // 8 octets of armed bits
-    uint64_t *armed_bits = data;
-    // 8 octets of pyro bits
-    uint64_t *pyro_bits = data + sizeof(uint64_t) * 8;
-
     // ESP_LOGI(TAG, "idx '%d'", data[0]);
 
+    ESP_LOGI(TAG, "armed_bits: ");
+    print_bytes(data->armed_bits);
+    ESP_LOGI(TAG, "pyro_bits: ");
+    print_bytes(data->pyro_bits);
+
     // Gets armed bit associated with this board ID
-    if (get_bit(armed_bits))
+    if (get_bit(data->armed_bits))
     {
+        ESP_LOGI(TAG, "ARMED");
         SET_ARMED();
     }
+    else
+    {
+        SET_DISARMED();
+    }
 
-    // if (get_bit(pyro_bits))
-    // {
-    //     DETONATE();
-    // }
+    if (get_bit(data->pyro_bits))
+    {
+        ESP_LOGI(TAG, "DETONATE");
+        DETONATE();
+    }
 #endif
 }
 
@@ -251,8 +268,7 @@ static void beastsquib_espnow_task(void *pvParameter)
                 beastsquib_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
                 if (beastsquib_validate_espnow_data_checksum(recv_cb->data, recv_cb->data_len) == 0)
                 {
-                    beastsquib_espnow_data_t *data = (beastsquib_espnow_data_t *)recv_cb->data;
-                    espnow_broadcast_packet_recv_cb(&data->payload);
+                    espnow_broadcast_packet_recv_cb(recv_cb->data);
                 }
 
                 free(recv_cb->data);
@@ -284,21 +300,26 @@ static void tx_transmit_task(void *pvParameter)
 
         // ESP_LOGI(TAG, "ticks %d", ticks_since_last_packet);
 
-        // 8 octets of armed bits
-        uint64_t armed_list[8];
-        // 8 octets of pyro bits
-        uint64_t pyro_list[8];
+        beastsquib_espnow_send_param_t *send_param = (beastsquib_espnow_send_param_t *)pvParameter;
+        beastsquib_espnow_data_t *data = send_param->buffer;
+
+        memset(data->armed_bits, 0, sizeof(data->armed_bits));
+        memset(data->pyro_bits, 0, sizeof(data->pyro_bits));
 
         /* Trigger board ID 433 */
-        int test_board_id = 433;
-        int test_board_idx = test_board_id / 64;
-        int test_board_offset = test_board_id % 64;
+        uint64_t test_board_id = 433;
+        uint64_t test_board_idx = test_board_id / 64;
+        uint64_t test_board_offset = test_board_id % 64;
+        data->armed_bits[test_board_idx] = 0xffffffffffff;
 
-        armed_list[test_board_idx] = (1 << test_board_offset);
+        ESP_LOGI(TAG, "armed_bits: ");
+        print_bytes(data->armed_bits);
+        ESP_LOGI(TAG, "pyro_bits: ");
+        print_bytes(data->pyro_bits);
 
-        beastsquib_espnow_send_param_t *send_param = (beastsquib_espnow_send_param_t *)pvParameter;
+        ESP_LOGI(TAG, "idx '%i', offset '%i'", (int)test_board_idx, (int)test_board_offset);
 
-        beastsquib_espnow_data_prepare(send_param, armed_list, pyro_list);
+        beastsquib_espnow_data_prepare(send_param);
 
         /* Send some data to the broadcast address. */
         if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
