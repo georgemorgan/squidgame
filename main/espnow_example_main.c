@@ -39,7 +39,6 @@
 static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-static uint16_t s_beastsquib_espnow_seq[beastsquib_ESPNOW_DATA_MAX] = { 0, 0 };
 
 // #define TX
 #define RX
@@ -47,6 +46,8 @@ static uint16_t s_beastsquib_espnow_seq[beastsquib_ESPNOW_DATA_MAX] = { 0, 0 };
 #if defined(TX) && defined(RX)
 #error Cannot define both TX and RX
 #endif
+
+int board_id = -1;
 
 #ifdef RX
 // RX
@@ -56,7 +57,6 @@ static uint16_t s_beastsquib_espnow_seq[beastsquib_ESPNOW_DATA_MAX] = { 0, 0 };
 #define GPIO_OUTPUT_ARMED_MASK (1ULL << GPIO_OUTPUT_ARMED_LED)
 
 /* Kill command variables. */
-int board_id = -1;
 bool pyro_armed = false;
 
 #define LOW 0
@@ -80,8 +80,10 @@ static inline void SET_DISARMED() {
 
 /* Detonates the PYRO! */
 static inline void DETONATE() {
-    // Set PYRO GPIO to HIGH (detonate)
-    gpio_set_level(GPIO_OUTPUT_PYRO, HIGH);
+    if (pyro_armed) {
+        // Set PYRO GPIO to HIGH (detonate)
+        gpio_set_level(GPIO_OUTPUT_PYRO, HIGH);
+    }
 }
 
 #endif
@@ -147,6 +149,7 @@ static void beastsquib_espnow_recv_cb(const uint8_t *mac_addr, const uint8_t *da
         ESP_LOGE(TAG, "Malloc receive data fail");
         return;
     }
+
     memcpy(recv_cb->data, data, len);
     recv_cb->data_len = len;
     if (xQueueSend(beastsquib_espnow_queue, &evt, portMAX_DELAY) != pdTRUE) {
@@ -180,27 +183,53 @@ int beastsquib_validate_espnow_data_checksum(uint8_t *data, uint16_t data_len)
 }
 
 /* Prepare ESPNOW data to be sent. */
-void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param)
+void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param, uint64_t *armed_list, uint64_t *pyro_list)
 {
-    beastsquib_espnow_data_t *buf = (beastsquib_espnow_data_t *)send_param->buffer;
-    int i = 0;
-
+    beastsquib_espnow_data_t *send_buffer = (beastsquib_espnow_data_t *)send_param->buffer;
     assert(send_param->len >= sizeof(beastsquib_espnow_data_t));
+    send_buffer->crc = 0;
+    send_buffer->magic = send_param->magic;
+    memcpy(send_buffer->payload, armed_list, sizeof(uint64_t) * 8);
+    memcpy(send_buffer->payload + sizeof(uint64_t) * 8, pyro_list, sizeof(uint64_t) * 8);
+    send_buffer->crc = crc16_le(UINT16_MAX, (uint8_t const *)send_buffer, send_param->len);
+}
 
-    buf->type = IS_BROADCAST_ADDR(send_param->dest_mac) ? beastsquib_ESPNOW_DATA_BROADCAST : beastsquib_ESPNOW_DATA_UNICAST;
-    buf->state = send_param->state;
-    buf->seq_num = s_beastsquib_espnow_seq[buf->type]++;
-    buf->crc = 0;
-    buf->magic = send_param->magic;
-    for (i = 0; i < send_param->len - sizeof(beastsquib_espnow_data_t); i++) {
-        buf->payload[i] = (uint8_t)esp_random();
+static bool get_bit(uint64_t *bits_list)
+{
+    if (board_id == -1) {
+        return false;
     }
-    buf->crc = crc16_le(UINT16_MAX, (uint8_t const *)buf, send_param->len);
+
+    // Modulo 64 gets the index into the armed list
+    int idx = (int)(board_id / 64);
+    int offset = (int)(board_id % 64);
+    ESP_LOGI(TAG, "idx '%i', offset '%i', bits '0x%llx', addr '%p'", idx, offset, 0ull, bits_list);
+    uint64_t armed_bits = bits_list[idx];
+    
+    return ((armed_bits & (1 << offset)) != 0);
 }
 
 /* Called when a broadcast packet is received. */
-static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
-    SET_ARMED();
+static void espnow_broadcast_packet_recv_cb(uint8_t *data) {
+#ifdef RX
+    // 8 octets of armed bits
+    uint64_t *armed_bits = data;
+    // 8 octets of pyro bits
+    uint64_t *pyro_bits = data + sizeof(uint64_t) * 8;
+
+    // ESP_LOGI(TAG, "idx '%d'", data[0]);
+
+    // Gets armed bit associated with this board ID
+    if (get_bit(armed_bits))
+    {
+        SET_ARMED();
+    }
+
+    // if (get_bit(pyro_bits))
+    // {
+    //     DETONATE();
+    // }
+#endif
 }
 
 static void beastsquib_espnow_task(void *pvParameter)
@@ -220,10 +249,11 @@ static void beastsquib_espnow_task(void *pvParameter)
                 ticks_since_last_packet = 0;
 
                 beastsquib_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
-                // if (beastsquib_validate_espnow_data_checksum(recv_cb->data, recv_cb->data_len) == 0)
-                // {
-                    espnow_broadcast_packet_recv_cb((beastsquib_espnow_data_t *)recv_cb->data);
-                // }
+                if (beastsquib_validate_espnow_data_checksum(recv_cb->data, recv_cb->data_len) == 0)
+                {
+                    beastsquib_espnow_data_t *data = (beastsquib_espnow_data_t *)recv_cb->data;
+                    espnow_broadcast_packet_recv_cb(&data->payload);
+                }
 
                 free(recv_cb->data);
 
@@ -236,6 +266,14 @@ static void beastsquib_espnow_task(void *pvParameter)
     }
 }
 
+static void beastsquib_espnow_deinit(beastsquib_espnow_send_param_t *send_param)
+{
+    free(send_param->buffer);
+    free(send_param);
+    vSemaphoreDelete(beastsquib_espnow_queue);
+    esp_now_deinit();
+}
+
 #ifdef TX
 
 static void tx_transmit_task(void *pvParameter)
@@ -246,8 +284,23 @@ static void tx_transmit_task(void *pvParameter)
 
         // ESP_LOGI(TAG, "ticks %d", ticks_since_last_packet);
 
-        /* Send some data to the broadcast address. */
+        // 8 octets of armed bits
+        uint64_t armed_list[8];
+        // 8 octets of pyro bits
+        uint64_t pyro_list[8];
+
+        /* Trigger board ID 433 */
+        int test_board_id = 433;
+        int test_board_idx = test_board_id / 64;
+        int test_board_offset = test_board_id % 64;
+
+        armed_list[test_board_idx] = (1 << test_board_offset);
+
         beastsquib_espnow_send_param_t *send_param = (beastsquib_espnow_send_param_t *)pvParameter;
+
+        beastsquib_espnow_data_prepare(send_param, armed_list, pyro_list);
+
+        /* Send some data to the broadcast address. */
         if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
             ESP_LOGE(TAG, "Send error");
             beastsquib_espnow_deinit(send_param);
@@ -295,22 +348,19 @@ static esp_err_t beastsquib_espnow_init(void)
 
     /* Initialize sending parameters. */
     send_param = malloc(sizeof(beastsquib_espnow_send_param_t));
-    memset(send_param, 0, sizeof(beastsquib_espnow_send_param_t));
     if (send_param == NULL) {
         ESP_LOGE(TAG, "Malloc send parameter fail");
         vSemaphoreDelete(beastsquib_espnow_queue);
         esp_now_deinit();
         return ESP_FAIL;
     }
+    memset(send_param, 0, sizeof(beastsquib_espnow_send_param_t));
 
-    send_param->unicast = false;
-    send_param->broadcast = true;
-    send_param->state = 0;
-    send_param->magic = esp_random();
-    send_param->count = CONFIG_ESPNOW_SEND_COUNT;
-    send_param->delay = CONFIG_ESPNOW_SEND_DELAY;
-    send_param->len = CONFIG_ESPNOW_SEND_LEN;
-    send_param->buffer = malloc(CONFIG_ESPNOW_SEND_LEN);
+    // Configure dest mac, magic number, send length, and buffer
+    memcpy(send_param->dest_mac, beastsquib_broadcast_mac, ESP_NOW_ETH_ALEN);
+    send_param->magic = BEASTSQUIB_MAGIC_NUMBER;
+    send_param->len = 200;
+    send_param->buffer = malloc(200);
 
     if (send_param->buffer == NULL) {
         ESP_LOGE(TAG, "Malloc send buffer fail");
@@ -320,9 +370,6 @@ static esp_err_t beastsquib_espnow_init(void)
         return ESP_FAIL;
     }
 
-    memcpy(send_param->dest_mac, beastsquib_broadcast_mac, ESP_NOW_ETH_ALEN);
-    beastsquib_espnow_data_prepare(send_param);
-
     xTaskCreate(beastsquib_espnow_task, "beastsquib_espnow_task", 2048, NULL, 4, NULL);
   
 #ifdef TX
@@ -331,31 +378,6 @@ static esp_err_t beastsquib_espnow_init(void)
 
     return ESP_OK;
 }
-
-static void beastsquib_espnow_deinit(beastsquib_espnow_send_param_t *send_param)
-{
-    free(send_param->buffer);
-    free(send_param);
-    vSemaphoreDelete(beastsquib_espnow_queue);
-    esp_now_deinit();
-}
-
-#define ESPNOW_SILENCE_TICKS_TIMEOUT 100
-
-/* Hardware timer keeps track of the number of ticks since the last received espnow packet
-   If more than 100 ticks have elapsed, disarm the board.
-*/
-void hw_timer_callback(void *arg)
-{
-    ticks_since_last_packet ++;
-
-    if (ticks_since_last_packet > ESPNOW_SILENCE_TICKS_TIMEOUT)
-    {
-        SET_DISARMED();
-    }
-}
-
-#ifdef TX
 
 #define EX_UART_NUM UART_NUM_0
 #define BUF_SIZE (1024)
@@ -383,7 +405,10 @@ static void read_board_id_cb(void)
         if (pos) {
             *pos = '\0';
         }
-        ESP_LOGI(TAG, "Read from file: '%s'", line);
+
+        board_id = atoi(line);
+
+        ESP_LOGI(TAG, "board_id: '%i'", board_id);
     }
     else
     {
@@ -493,7 +518,22 @@ static void uart_event_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-#endif
+#define ESPNOW_SILENCE_TICKS_TIMEOUT 100
+
+/* Hardware timer keeps track of the number of ticks since the last received espnow packet
+   If more than 100 ticks have elapsed, disarm the board.
+*/
+void hw_timer_callback(void *arg)
+{
+    ticks_since_last_packet ++;
+
+    if (ticks_since_last_packet > ESPNOW_SILENCE_TICKS_TIMEOUT)
+    {
+        #ifdef RX
+            SET_DISARMED();
+        #endif
+    }
+}
 
 void app_main()
 {
@@ -565,10 +605,9 @@ void app_main()
         ESP_LOGI(TAG, "File written");
     }
 
-#endif
+    read_board_id_cb();
 
-    /* Only the transmitter runs the UART task to process kill data. */
-#ifdef TX
+#endif
 
     // Configure parameters of an UART driver
     uart_config_t uart_config = {
@@ -584,8 +623,6 @@ void app_main()
     uart_param_config(EX_UART_NUM, &uart_config);
     uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 100, &uart0_queue, 0);
     xTaskCreate(uart_event_task, "uart_event_task", 2048, NULL, 12, NULL);
-
-#endif
 
     beastsquib_wifi_init();
     beastsquib_espnow_init();
