@@ -41,14 +41,15 @@ static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-#define TX
-// #define RX
+// #define TX
+#define RX
 
 #if defined(TX) && defined(RX)
 #error Cannot define both TX and RX
 #endif
 
 int board_id = -1;
+uint16_t test_board_id = 433;
 
 #ifdef RX
 // RX
@@ -193,30 +194,27 @@ void beastsquib_espnow_data_prepare(beastsquib_espnow_send_param_t *send_param)
     send_buffer->crc = crc16_le(UINT16_MAX, (uint8_t const *)send_buffer, send_param->len);
 }
 
-static bool get_bit(uint64_t *bits_list)
+static bool get_bit(uint8_t *bits_list)
 {
     if (board_id == -1) {
         return false;
     }
 
     // Modulo 64 gets the index into the armed list
-    uint64_t idx = (uint64_t)(board_id / 64);
-    uint64_t offset = (uint64_t)(board_id % 64);
-    uint64_t bits = bits_list[idx];
+    uint16_t idx = board_id / 8;
+    uint8_t offset = board_id % 8;
+    uint8_t bits = bits_list[idx];
     bool set = ((bits & (1 << offset)) != 0);
     
-    ESP_LOGI(TAG, "idx '%i', offset '%i', bit '%s'", (int)idx, (int)offset, (set) ? "T" : "F");
+    // ESP_LOGI(TAG, "idx '%i', offset '%i', bit '%s'", (int)idx, (int)offset, (set) ? "T" : "F");
 
     return set;
 }
 
-static void print_bytes(uint64_t *bits_list) {
-    for (int i = 0; i < 8; i ++)
+static void print_bytes(uint8_t *bits_list) {
+    for (int i = 0; i < 64; i ++)
     {
-        for (int j = 0; j < 4; j ++)
-        {
-            ESP_LOGI(TAG, "byte 0x%02x", *(uint8_t *)((uint8_t *)bits_list + i + j));
-        }
+        ESP_LOGI(TAG, "byte 0x%02x", *(uint8_t *)(bits_list + i));
     }
 }
 
@@ -225,10 +223,10 @@ static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
 #ifdef RX
     // ESP_LOGI(TAG, "idx '%d'", data[0]);
 
-    ESP_LOGI(TAG, "armed_bits: ");
-    print_bytes(data->armed_bits);
-    ESP_LOGI(TAG, "pyro_bits: ");
-    print_bytes(data->pyro_bits);
+    // ESP_LOGI(TAG, "armed_bits: ");
+    // print_bytes(data->armed_bits);
+    // ESP_LOGI(TAG, "pyro_bits: ");
+    // print_bytes(data->pyro_bits);
 
     // Gets armed bit associated with this board ID
     if (get_bit(data->armed_bits))
@@ -296,7 +294,7 @@ static void tx_transmit_task(void *pvParameter)
 {
     while (1)
     {
-        vTaskDelay(5 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_RATE_MS);
 
         // ESP_LOGI(TAG, "ticks %d", ticks_since_last_packet);
 
@@ -307,17 +305,16 @@ static void tx_transmit_task(void *pvParameter)
         memset(data->pyro_bits, 0, sizeof(data->pyro_bits));
 
         /* Trigger board ID 433 */
-        uint64_t test_board_id = 433;
-        uint64_t test_board_idx = test_board_id / 64;
-        uint64_t test_board_offset = test_board_id % 64;
-        data->armed_bits[test_board_idx] = 0xffffffffffff;
+        uint8_t test_board_idx = test_board_id / 8;
+        uint8_t test_board_offset = test_board_id % 8;
+        data->armed_bits[test_board_idx] = (1 << test_board_offset);
 
-        ESP_LOGI(TAG, "armed_bits: ");
-        print_bytes(data->armed_bits);
-        ESP_LOGI(TAG, "pyro_bits: ");
-        print_bytes(data->pyro_bits);
+        // ESP_LOGI(TAG, "armed_bits: ");
+        // print_bytes(data->armed_bits);
+        // ESP_LOGI(TAG, "pyro_bits: ");
+        // print_bytes(data->pyro_bits);
 
-        ESP_LOGI(TAG, "idx '%i', offset '%i'", (int)test_board_idx, (int)test_board_offset);
+        // ESP_LOGI(TAG, "idx '%i', offset '%i'", (int)test_board_idx, (int)test_board_offset);
 
         beastsquib_espnow_data_prepare(send_param);
 
@@ -328,7 +325,7 @@ static void tx_transmit_task(void *pvParameter)
             vTaskDelete(NULL);
         }
 
-        ESP_LOGI(TAG, "sent data");
+        // ESP_LOGI(TAG, "sent data");
     }
 }
 
@@ -462,6 +459,17 @@ static void set_board_id_cb(void)
     ESP_LOGI(TAG, "File written");
 }
 
+// DEBUG only
+static void set_test_board_id_cb(void)
+{
+    // Parse the board id buffer
+    char board_id[4];
+    memset(board_id, 0, 4);
+    memcpy(board_id, uart_command_buffer+5, 3);
+    test_board_id = atoi(board_id);
+    ESP_LOGI(TAG, "test_board_id: %i", test_board_id);
+}
+
 static void uart_event_task(void *pvParameters)
 {
     uart_event_t event;
@@ -494,6 +502,10 @@ static void uart_event_task(void *pvParameters)
                             read_board_id_cb();
                         }
 
+                        if (memcmp(uart_command_buffer, "#TID,", 4) == 0 && uart_command_buffer[8] == ';')
+                        {
+                            set_test_board_id_cb();
+                        }
                     }
                     uart_write_bytes(EX_UART_NUM, (const char *) dtmp, event.size);
                     break;
