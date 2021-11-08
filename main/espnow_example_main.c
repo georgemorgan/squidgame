@@ -41,8 +41,8 @@ static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-// #define TX
-#define RX
+#define TX
+// #define RX
 
 #if defined(TX) && defined(RX)
 #error Cannot define both TX and RX
@@ -52,46 +52,46 @@ int board_id = -1;
 uint16_t test_board_id = 0;
 beastsquib_espnow_data_t global_tx_data;
 
-#ifdef RX
+/* Kill command variables. */
+bool pyro_armed = false;
+bool pyro_detonated = false;
+
 // RX
 #define GPIO_OUTPUT_PYRO 15
 #define GPIO_OUTPUT_PYRO_MASK (1ULL << GPIO_OUTPUT_PYRO)
 #define GPIO_OUTPUT_ARMED_LED 16
 #define GPIO_OUTPUT_ARMED_MASK (1ULL << GPIO_OUTPUT_ARMED_LED)
 
-/* Kill command variables. */
-bool pyro_armed = false;
-
 #define LOW 0
 #define HIGH 1
 
 /* Enables the PYRO GPIO pin (sets to OUTPUT with pull down) */
 static inline void SET_ARMED() {
+    pyro_armed = true;
+
     // Set LED to LOW (on)
     gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
-
-    pyro_armed = true;
 }
 
 /* Disables the PYRO GPIO pin (sets to tri-state with pull down) */
-static inline void SET_DISARMED() {
+static inline void SET_DISARMED() {    
+    pyro_armed = false;
+
     // Set LED to HIGH (off)
     gpio_set_level(GPIO_OUTPUT_ARMED_LED, HIGH);
-    
-    pyro_armed = false;
 }
 
 /* Detonates the PYRO! */
 static inline void DETONATE() {
     if (pyro_armed) {
+        pyro_detonated = true;
         // Set PYRO GPIO to HIGH (detonate)
         gpio_set_level(GPIO_OUTPUT_PYRO, HIGH);
     }
 }
 
-#endif
-
-static uint16_t ticks_since_last_packet = 0;
+static uint64_t ticks_since_last_packet = 0;
+static uint64_t hw_timer_ticks = 0;
 
 /* WiFi should start before using ESPNOW */
 static void beastsquib_wifi_init(void)
@@ -305,7 +305,7 @@ static void tx_transmit_task(void *pvParameter)
         memcpy(data, &global_tx_data, sizeof(global_tx_data));
 
         /* Arm or disarm all the boards */
-        // data->armed = global_armed_state;
+        // data->armed = 1;
 
         /* Trigger the test_board_id */
         // uint8_t test_board_idx = test_board_id / 8;
@@ -581,13 +581,30 @@ static void uart_event_task(void *pvParameters)
 */
 void hw_timer_callback(void *arg)
 {
+    hw_timer_ticks ++;
     ticks_since_last_packet ++;
+
+    static int blink_state = 0;
 
     if (ticks_since_last_packet > ESPNOW_SILENCE_TICKS_TIMEOUT)
     {
-        #ifdef RX
-            SET_DISARMED();
-        #endif
+        SET_DISARMED();
+    }
+    else if (pyro_detonated)
+    {
+        // Solid on for detonated
+        gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
+    }
+    else if (pyro_armed && (hw_timer_ticks % 1000 == 0))
+    {
+        // Blink for armed
+        blink_state ^= 1;
+        // Set LED
+        gpio_set_level(GPIO_OUTPUT_ARMED_LED, blink_state);
+    }
+    else
+    {
+
     }
 }
 
