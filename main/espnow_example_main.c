@@ -41,15 +41,15 @@ static const char *TAG = "beast_squib";
 static xQueueHandle beastsquib_espnow_queue;
 static uint8_t beastsquib_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-#define TX
-// #define RX
+// #define TX
+#define RX
 
 #if defined(TX) && defined(RX)
 #error Cannot define both TX and RX
 #endif
 
 int board_id = -1;
-uint16_t test_board_id = 0;
+uint16_t test_board_id = 433;
 beastsquib_espnow_data_t global_tx_data;
 
 /* Kill command variables. */
@@ -68,9 +68,6 @@ bool pyro_detonated = false;
 /* Enables the PYRO GPIO pin (sets to OUTPUT with pull down) */
 static inline void SET_ARMED() {
     pyro_armed = true;
-
-    // Set LED to LOW (on)
-    gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
 }
 
 /* Disables the PYRO GPIO pin (sets to tri-state with pull down) */
@@ -87,6 +84,14 @@ static inline void DETONATE() {
         pyro_detonated = true;
         // Set PYRO GPIO to HIGH (detonate)
         gpio_set_level(GPIO_OUTPUT_PYRO, HIGH);
+    }
+}
+
+static inline void REVIVE() {
+    if (pyro_armed) {
+        pyro_detonated = false;
+        // Set PYRO GPIO to LOW (revive)
+        gpio_set_level(GPIO_OUTPUT_PYRO, LOW);
     }
 }
 
@@ -245,6 +250,10 @@ static void espnow_broadcast_packet_recv_cb(beastsquib_espnow_data_t *data) {
         ESP_LOGI(TAG, "DETONATE");
         DETONATE();
     }
+    else
+    {
+        REVIVE();
+    }
 #endif
 }
 
@@ -323,9 +332,8 @@ static void tx_transmit_task(void *pvParameter)
 
         /* Send some data to the broadcast address. */
         if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
-            ESP_LOGE(TAG, "Send error");
-            beastsquib_espnow_deinit(send_param);
-            vTaskDelete(NULL);
+            // Maybe WATCHDOG here?
+            ESP_LOGE(TAG, "send fail");
         }
 
         // ESP_LOGI(TAG, "sent data");
@@ -508,8 +516,8 @@ static void uart_event_task(void *pvParameters)
                         if (memcmp(end_buffer-6, "#ARM,", 4) == 0 && *(uint8_t *)end_buffer == ';')
                         {
                             // Parse the board id buffer
-                            char armed_bit[1];
-                            memset(armed_bit, 0, 1);
+                            char armed_bit[2];
+                            memset(armed_bit, 0, 2);
                             memcpy(armed_bit, end_buffer-1, 1);
                             global_tx_data.armed = atoi(armed_bit);
                             ESP_LOGI(TAG, "global_armed_state: %i", global_tx_data.armed);
@@ -595,7 +603,7 @@ void hw_timer_callback(void *arg)
         // Solid on for detonated
         gpio_set_level(GPIO_OUTPUT_ARMED_LED, LOW);
     }
-    else if (pyro_armed && (hw_timer_ticks % 1000 == 0))
+    else if (pyro_armed && (hw_timer_ticks % 200 == 0))
     {
         // Blink for armed
         blink_state ^= 1;

@@ -61,7 +61,7 @@ typedef struct {
     uint16_t crc;
     uint32_t magic;
     uint16_t padding;
-    uint8_t armed;
+    uint16_t armed;
     uint8_t pyro_bits[64];
 } __attribute__((packed)) beastsquib_espnow_data_t;
 
