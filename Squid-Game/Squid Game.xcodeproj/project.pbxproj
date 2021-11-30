@@ -1,0 +1,398 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 55;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DC49ED312728E85700A1D1FA /* PlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC49ED302728E85700A1D1FA /* PlayerController.swift */; };
+		DC49ED332728E87F00A1D1FA /* WebSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC49ED322728E87E00A1D1FA /* WebSocket.swift */; };
+		DC49ED352728FEED00A1D1FA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC49ED342728FEED00A1D1FA /* SettingsView.swift */; };
+		DC49ED372728FFAF00A1D1FA /* PlayerCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC49ED362728FFAF00A1D1FA /* PlayerCell.swift */; };
+		DC49ED392729000A00A1D1FA /* Honeycomb.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC49ED382729000A00A1D1FA /* Honeycomb.swift */; };
+		DC5E6CC3273A12F7001FC5AE /* CircleGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC5E6CC2273A12F7001FC5AE /* CircleGrid.swift */; };
+		DCD6417127238B2B00FB9DF7 /* Squid_GameApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD6417027238B2B00FB9DF7 /* Squid_GameApp.swift */; };
+		DCD6417327238B2B00FB9DF7 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD6417227238B2B00FB9DF7 /* ContentView.swift */; };
+		DCD6417527238B2B00FB9DF7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCD6417427238B2B00FB9DF7 /* Assets.xcassets */; };
+		DCD6417827238B2B00FB9DF7 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCD6417727238B2B00FB9DF7 /* Preview Assets.xcassets */; };
+		DCD6418327238F7200FB9DF7 /* Chunks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD6418227238F7200FB9DF7 /* Chunks.swift */; };
+		DCD6418627239F9F00FB9DF7 /* DS-DIGIB.TTF in Resources */ = {isa = PBXBuildFile; fileRef = DCD6418527239F9F00FB9DF7 /* DS-DIGIB.TTF */; };
+		DCD6418A27249C5B00FB9DF7 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD6418927249C5B00FB9DF7 /* ImageCache.swift */; };
+		DCE18F18272F095C00D66A93 /* Game Of Squids.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DCE18F17272F095C00D66A93 /* Game Of Squids.ttf */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		DC49ED302728E85700A1D1FA /* PlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerController.swift; sourceTree = "<group>"; };
+		DC49ED322728E87E00A1D1FA /* WebSocket.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSocket.swift; sourceTree = "<group>"; };
+		DC49ED342728FEED00A1D1FA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DC49ED362728FFAF00A1D1FA /* PlayerCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCell.swift; sourceTree = "<group>"; };
+		DC49ED382729000A00A1D1FA /* Honeycomb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Honeycomb.swift; sourceTree = "<group>"; };
+		DC5E6CC2273A12F7001FC5AE /* CircleGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleGrid.swift; sourceTree = "<group>"; };
+		DCD6416D27238B2B00FB9DF7 /* Squid Game.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Squid Game.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCD6417027238B2B00FB9DF7 /* Squid_GameApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Squid_GameApp.swift; sourceTree = "<group>"; };
+		DCD6417227238B2B00FB9DF7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		DCD6417427238B2B00FB9DF7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DCD6417727238B2B00FB9DF7 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		DCD6418027238DA500FB9DF7 /* Squid-Game-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Squid-Game-Info.plist"; sourceTree = SOURCE_ROOT; };
+		DCD6418227238F7200FB9DF7 /* Chunks.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Chunks.swift; sourceTree = "<group>"; };
+		DCD6418527239F9F00FB9DF7 /* DS-DIGIB.TTF */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DS-DIGIB.TTF"; sourceTree = "<group>"; };
+		DCD6418927249C5B00FB9DF7 /* ImageCache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		DCE18F16272A669900D66A93 /* Squid Game.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Squid Game.entitlements"; sourceTree = "<group>"; };
+		DCE18F17272F095C00D66A93 /* Game Of Squids.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Game Of Squids.ttf"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DCD6416A27238B2B00FB9DF7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DCD6416427238B2A00FB9DF7 = {
+			isa = PBXGroup;
+			children = (
+				DCD6416F27238B2B00FB9DF7 /* Squid Game */,
+				DCD6416E27238B2B00FB9DF7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DCD6416E27238B2B00FB9DF7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DCD6416D27238B2B00FB9DF7 /* Squid Game.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DCD6416F27238B2B00FB9DF7 /* Squid Game */ = {
+			isa = PBXGroup;
+			children = (
+				DCE18F16272A669900D66A93 /* Squid Game.entitlements */,
+				DCD6418027238DA500FB9DF7 /* Squid-Game-Info.plist */,
+				DCD6417027238B2B00FB9DF7 /* Squid_GameApp.swift */,
+				DCD6417227238B2B00FB9DF7 /* ContentView.swift */,
+				DC49ED382729000A00A1D1FA /* Honeycomb.swift */,
+				DC5E6CC2273A12F7001FC5AE /* CircleGrid.swift */,
+				DC49ED362728FFAF00A1D1FA /* PlayerCell.swift */,
+				DC49ED342728FEED00A1D1FA /* SettingsView.swift */,
+				DC49ED322728E87E00A1D1FA /* WebSocket.swift */,
+				DC49ED302728E85700A1D1FA /* PlayerController.swift */,
+				DCD6418927249C5B00FB9DF7 /* ImageCache.swift */,
+				DCD6418227238F7200FB9DF7 /* Chunks.swift */,
+				DCD6418527239F9F00FB9DF7 /* DS-DIGIB.TTF */,
+				DCE18F17272F095C00D66A93 /* Game Of Squids.ttf */,
+				DCD6417427238B2B00FB9DF7 /* Assets.xcassets */,
+				DCD6417627238B2B00FB9DF7 /* Preview Content */,
+			);
+			path = "Squid Game";
+			sourceTree = "<group>";
+		};
+		DCD6417627238B2B00FB9DF7 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				DCD6417727238B2B00FB9DF7 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DCD6416C27238B2B00FB9DF7 /* Squid Game */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCD6417B27238B2B00FB9DF7 /* Build configuration list for PBXNativeTarget "Squid Game" */;
+			buildPhases = (
+				DCD6416927238B2B00FB9DF7 /* Sources */,
+				DCD6416A27238B2B00FB9DF7 /* Frameworks */,
+				DCD6416B27238B2B00FB9DF7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Squid Game";
+			productName = "Squid Game";
+			productReference = DCD6416D27238B2B00FB9DF7 /* Squid Game.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DCD6416527238B2A00FB9DF7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1300;
+				LastUpgradeCheck = 1300;
+				TargetAttributes = {
+					DCD6416C27238B2B00FB9DF7 = {
+						CreatedOnToolsVersion = 13.0;
+					};
+				};
+			};
+			buildConfigurationList = DCD6416827238B2A00FB9DF7 /* Build configuration list for PBXProject "Squid Game" */;
+			compatibilityVersion = "Xcode 13.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DCD6416427238B2A00FB9DF7;
+			productRefGroup = DCD6416E27238B2B00FB9DF7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DCD6416C27238B2B00FB9DF7 /* Squid Game */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DCD6416B27238B2B00FB9DF7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DCD6417827238B2B00FB9DF7 /* Preview Assets.xcassets in Resources */,
+				DCD6417527238B2B00FB9DF7 /* Assets.xcassets in Resources */,
+				DCD6418627239F9F00FB9DF7 /* DS-DIGIB.TTF in Resources */,
+				DCE18F18272F095C00D66A93 /* Game Of Squids.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DCD6416927238B2B00FB9DF7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC5E6CC3273A12F7001FC5AE /* CircleGrid.swift in Sources */,
+				DC49ED372728FFAF00A1D1FA /* PlayerCell.swift in Sources */,
+				DC49ED352728FEED00A1D1FA /* SettingsView.swift in Sources */,
+				DC49ED392729000A00A1D1FA /* Honeycomb.swift in Sources */,
+				DCD6417327238B2B00FB9DF7 /* ContentView.swift in Sources */,
+				DCD6418327238F7200FB9DF7 /* Chunks.swift in Sources */,
+				DC49ED312728E85700A1D1FA /* PlayerController.swift in Sources */,
+				DCD6418A27249C5B00FB9DF7 /* ImageCache.swift in Sources */,
+				DCD6417127238B2B00FB9DF7 /* Squid_GameApp.swift in Sources */,
+				DC49ED332728E87F00A1D1FA /* WebSocket.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DCD6417927238B2B00FB9DF7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DCD6417A27238B2B00FB9DF7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		DCD6417C27238B2B00FB9DF7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Squid Game/Squid Game.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Squid Game/Preview Content\"";
+				DEVELOPMENT_TEAM = W7GJMYD5A4;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Squid-Game-Info.plist";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.harlanhaskins.Squid-Game";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Debug;
+		};
+		DCD6417D27238B2B00FB9DF7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Squid Game/Squid Game.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Squid Game/Preview Content\"";
+				DEVELOPMENT_TEAM = W7GJMYD5A4;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Squid-Game-Info.plist";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.harlanhaskins.Squid-Game";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DCD6416827238B2A00FB9DF7 /* Build configuration list for PBXProject "Squid Game" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD6417927238B2B00FB9DF7 /* Debug */,
+				DCD6417A27238B2B00FB9DF7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DCD6417B27238B2B00FB9DF7 /* Build configuration list for PBXNativeTarget "Squid Game" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD6417C27238B2B00FB9DF7 /* Debug */,
+				DCD6417D27238B2B00FB9DF7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DCD6416527238B2A00FB9DF7 /* Project object */;
+}
